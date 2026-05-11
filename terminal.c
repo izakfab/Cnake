@@ -28,7 +28,7 @@ int kbhit() {
 	FD_ZERO(&set);
 	FD_SET(STDIN_FILENO, &set);
 	tv.tv_sec = 0;
-	tv.tv_usec = 500000;
+	tv.tv_usec = 10000;
 	return select(STDIN_FILENO + 1, &set, NULL, NULL, &tv);
 }
 
