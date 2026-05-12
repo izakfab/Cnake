@@ -11,6 +11,11 @@ typedef struct _snake_body {
 	struct _snake_body *next;
 } snake_body;
 
+typedef struct _apple {
+	int x;
+	int y;
+} apple;
+
 
 void odstrani_zadnjo(snake_body* glava) {
 	if (glava -> next -> next == NULL) {
@@ -21,6 +26,27 @@ void odstrani_zadnjo(snake_body* glava) {
 		glava -> next = NULL;
 	}
 	else odstrani_zadnjo(glava -> next);
+}
+
+int prosto(snake_body* glava, int x, int y) {
+	if (glava == NULL) return 1;
+	if (glava -> x == x && glava -> y == y) return 0;
+	return prosto(glava -> next, x, y);
+}
+
+apple* ustvari_jabolko(snake_body* glava, int width, int height) {
+	apple* jabolko = (apple*) malloc(sizeof(apple));
+	int x = 0;
+	int y = 0;
+	do {
+		x = rand() % width;
+		y = rand() % height;
+	} while (!prosto(glava, x, y));
+	move_cursor(12 + x * 2, 7 + y);
+	print_red("◖◗");
+	jabolko -> x = x;
+	jabolko -> y = y;
+	return jabolko;
 }
 
 snake_body* preveri_self_collision(snake_body* glava, int x, int y) {
@@ -59,12 +85,12 @@ snake_body* premik(snake_body* glava, int smer, int width, int height, int* runn
 			*running = 0;
 		} else nova_glava -> y++;
 	} else if (smer == 2) {
-		if (glava -> x * 2 == width - 2) {
+		if (glava -> x == width - 1) {
 			for (int i = 0; i < 3; i++) {
-				move_cursor(12 + width, 7 + glava -> y);
+				move_cursor(12 + width * 2, 7 + glava -> y);
 				printf("| ");
 				usleep(500000);
-				move_cursor(12 + width, 7 + glava -> y);
+				move_cursor(12 + width * 2, 7 + glava -> y);
 				print_red("██");
 				usleep(500000);
 			}
@@ -84,7 +110,7 @@ snake_body* premik(snake_body* glava, int smer, int width, int height, int* runn
 		} else nova_glava -> x--;
 	}
 	snake_body* potencialni_zadetek = preveri_self_collision(glava, nova_glava -> x, nova_glava -> y);
-	if (potencialni_zadetek != NULL) {
+	if (potencialni_zadetek != NULL && *running == 1) {
 		for(int i = 0; i < 3; i++) {
 			move_cursor(12 + nova_glava -> x * 2, 7 + nova_glava -> y);
 			print_green(potencialni_zadetek -> oblika);
@@ -100,30 +126,23 @@ snake_body* premik(snake_body* glava, int smer, int width, int height, int* runn
 }
 
 int main() {
-
+	srand(time(NULL));
 	snake_body* glava = (snake_body*) malloc(sizeof(snake_body));
 	snake_body* t1 = (snake_body*) malloc(sizeof(snake_body));
 	snake_body* t2 = (snake_body*) malloc(sizeof(snake_body));
-	snake_body* t3 = (snake_body*) malloc(sizeof(snake_body));
-	snake_body* t4 = (snake_body*) malloc(sizeof(snake_body));
-	snake_body* t5 = (snake_body*) malloc(sizeof(snake_body));
-	snake_body* t6 = (snake_body*) malloc(sizeof(snake_body));
-	t6 -> x = 4; t6 -> y = 10; t6 -> next = NULL;
-	t5 -> x = 5; t5 -> y = 10; t5 -> next = t6;
-	t4 -> x = 6; t4 -> y = 10; t4 -> next = t5;
-	t3 -> x = 7; t3 -> y = 10; t3 -> next = t4;
-	// t2 -> x = 8; t2 -> y = 10; t2 -> next = NULL;
-	t2 -> x = 8; t2 -> y = 10; t2 -> next = t3;
+	t2 -> x = 8; t2 -> y = 10; t2 -> next = NULL;
 	t1 -> x = 9; t1 -> y = 10; t1 -> next = t2;
 	glava -> x = 10; glava -> y = 10; glava -> next = t1;
+
 
 	terminal_init();
 	clear();
 	setbuf(stdout, NULL);
-    int width = 40;
+    int width = 20;
 	int height = 20;
 
-	draw_box(width, height, 10, 5);
+	draw_box(width * 2, height, 10, 5);
+	apple* jabolko = ustvari_jabolko(glava, width, height);
 
 	int sw = 0;
 	int running = 1;
@@ -168,13 +187,24 @@ int main() {
 			else if ((direction == 0 && prev_direction == 3) || (direction == 2 && prev_direction == 1)) oblika = " ▀";
 			print_green(oblika);
 			glava -> oblika = oblika;
-			odstrani_zadnjo(nova_glava);
+			move_cursor(1, 1);
+			printf("                             ");
+			move_cursor(1, 1);
+			printf("%d %d", nova_glava -> x, nova_glava -> y);
+			move_cursor(1, 2);
+			printf("                             ");
+			move_cursor(1, 2);
+			printf("%d %d", jabolko -> x, jabolko -> y);
+			if (nova_glava -> x == jabolko -> x && nova_glava -> y == jabolko -> y) {
+				free(jabolko);
+				jabolko = ustvari_jabolko(nova_glava, width, height);
+			} else odstrani_zadnjo(nova_glava);
 			before = clock() * 10000 / CLOCKS_PER_SEC;
 			glava = nova_glava;
 			prev_direction = direction;
 		}
 	}
-	move_cursor(12 + width, 7 + height);
+	move_cursor(12 + width * 2, 7 + height);
 	printf("\n");
 	terminal_cleanup();
 
