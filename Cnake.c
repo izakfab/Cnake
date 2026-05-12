@@ -1,5 +1,7 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
@@ -127,14 +129,124 @@ snake_body* premik(snake_body* glava, int smer, int width, int height, int* runn
 }
 
 int main(int argc, char** argv) {
-
-    int WIDTH = 20;
 	int HEIGHT = 20;
-	int OFFSETX = 6;
-	int OFFSETY = 3;
-	int TRIGGER = 500;
-	
-	// if (argc > 1)
+    int WIDTH = 20;
+	int TICK_SPEED = 500;
+	int OFFSETX = 12;
+	int OFFSETY = 6;
+
+	for (int i = 1; i < argc; i++) {
+		char* endptr;
+		if (!strcmp(argv[i], "--height") || !strcmp(argv[i], "-h")) {
+			if (i != argc - 1) {
+				int height = strtol(argv[i + 1], &endptr, 10);
+				if (*endptr != 0) {
+					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
+					return 1;
+				} else if (height < 3 || height > INT32_MAX) {
+					printf("Height must be at least 3 and less than %d!\n", INT32_MAX);
+					return 1;
+				} else {
+					HEIGHT = height;
+					i++;
+				}
+			} else {
+				printf("Missing argument for flag %s! (use --help for list of arguments)\n", argv[i]);
+				return 1;
+			}
+		} else if (!strcmp(argv[i], "--width") || !strcmp(argv[i], "-w")) {
+			if (i != argc - 1) {
+				int width = strtol(argv[i + 1], &endptr, 10);
+				if (*endptr != 0) {
+					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
+					return 1;
+				} else if (width < 5 || width > INT32_MAX) {
+					printf("Width must be at least 5 and less than %d!\n", INT32_MAX);
+					return 1;
+				} else {
+					WIDTH = width;
+					i++;
+				}
+			} else {
+				printf("Missing argument for flag %s!\n", argv[i]);
+				return 1;
+			}
+		} else if (!strcmp(argv[i], "--tickspeed") || !strcmp(argv[i], "-t")) {
+			if (i != argc - 1) {
+				int tick_speed = strtol(argv[i + 1], &endptr, 10);
+				if (*endptr != 0) {
+					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
+					return 1;
+				} else if (tick_speed < 100 || tick_speed > INT32_MAX) {
+					printf("Tick speed must be at least 100 and less than %d!\n", INT32_MAX);
+					return 1;
+				} else {
+					TICK_SPEED = tick_speed;
+					i++;
+				}
+			} else {
+				printf("Missing argument for flag %s!\n", argv[i]);
+				return 1;
+			}
+		} else if (!strcmp(argv[i], "--offsetx")) {
+			if (i != argc - 1) {
+				int offsetx = strtol(argv[i + 1], &endptr, 10);
+				if (*endptr != 0) {
+					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
+					return 1;
+				} else if (offsetx < 0 || offsetx > INT32_MAX) {
+					printf("X offset must be at least 0 and less than %d!\n", INT32_MAX);
+					return 1;
+				} else {
+					OFFSETX = offsetx;
+					i++;
+				}
+			} else {
+				printf("Missing argument for flag %s!\n", argv[i]);
+				return 1;
+			}
+		} else if (!strcmp(argv[i], "--offsety")) {
+			if (i != argc - 1) {
+				int offsety = strtol(argv[i + 1], &endptr, 10);
+				if (*endptr != 0) {
+					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
+					return 1;
+				} else if (offsety < 0 || offsety > INT32_MAX) {
+					printf("Y offset must be at least 0 and less than %d!\n", INT32_MAX);
+					return 1;
+				} else {
+					OFFSETY = offsety;
+					i++;
+				}
+			} else {
+				printf("Missing argument for flag %s!\n", argv[i]);
+				return 1;
+			}
+		} else {
+			int exit = 0;
+			if (strcmp(argv[i], "--help")) {
+				printf("%s is not a valid argument!", argv[i]);
+				exit = 1;
+			} else printf("Cnake is a remake of a Snake game in language C.");
+			printf(" Below are usage and the possible command line arguments:\
+					\nUsage: Cnake [options]\
+					\n\
+					\n  -h HEIGHT, --height HEIGHT\
+					\n\tSets the height of the playing field to HEIGHT characters (default: 20)\
+					\n  -w WIDTH, --width WIDTH\
+					\n\tSets the width of the playing field to WIDTH * 2 characters\
+					\n\tWIDTH * 2 is used for compatibility with terminals with 2:1 aspect ratio of character height:character width (default: 20)\
+					\n  -t TICK_SPEED, --tickspeed TICK_SPEED\
+					\n\tSets the length of a game tick to TICK_SPEED in ms (default: 500)\
+					\n  --offsetx OFFSET\
+					\n\tSets the offset from the left edge to the border to OFFSET characters (default: 12)\
+					\n  --offsety OFFSET\
+					\n\tSets the offset from the top edge to the border to OFFSET characters (default: 6)\
+					\n  --help\
+					\n\tPrints this message\n");
+			return exit;
+		}
+	}
 
 	snake_body* glava = (snake_body*) malloc(sizeof(snake_body));
 	snake_body* t1 = (snake_body*) malloc(sizeof(snake_body));
@@ -183,7 +295,7 @@ int main(int argc, char** argv) {
 		gettimeofday(&tv_now, NULL);
 		int elapsed_ms = (tv_now.tv_sec - tv_before.tv_sec) * 1000
 		               + (tv_now.tv_usec - tv_before.tv_usec) / 1000;
-		if (elapsed_ms > TRIGGER) {
+		if (elapsed_ms > TICK_SPEED) {
 			changed = 0;
 			snake_body* nova_glava = premik(glava, direction, WIDTH, HEIGHT, &running, OFFSETX + 2, OFFSETY + 2);
 			move_cursor(OFFSETX + 2 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
