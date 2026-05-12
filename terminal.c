@@ -43,19 +43,19 @@ void move_cursor(int x, int y) {
 
 void draw_box(int width, int height, int offx, int offy) {
 	move_cursor(1 + offx, 1 + offy);
-	putchar('+');
-	for (int i = 0; i < width; i++) putchar('-');
-	putchar('+');
+	printf("╔");
+	for (int i = 0; i < width; i++) printf("═");
+	printf("╗");
 	for (int i = 0; i < height; i++) {
 		move_cursor(1 + offx, i + 2 + offy);
-		putchar('|');
+		printf("║");
 		move_cursor(width + 2 + offx, i + 2 + offy);
-		putchar('|');
+		printf("║");
 	}
 	move_cursor(1 + offx, height + 2 + offy);
-	putchar('+');
-	for (int i = 0; i < width; i++) putchar('-');
-	putchar('+');
+	printf("╚");
+	for (int i = 0; i < width; i++) printf("═");
+	printf("╝");
 }
 
 void print_red(char text[]) {
