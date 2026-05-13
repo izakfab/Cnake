@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <time.h>
 #include <sys/time.h>
 #include "terminal.h"
 
@@ -188,7 +187,7 @@ int main(int argc, char** argv) {
 				printf("Missing argument for flag %s!\n", argv[i]);
 				return 1;
 			}
-		} else if (!strcmp(argv[i], "--offsetx")) {
+		/*} else if (!strcmp(argv[i], "--offsetx")) {
 			if (i != argc - 1) {
 				int offsetx = strtol(argv[i + 1], &endptr, 10);
 				if (*endptr != 0) {
@@ -221,7 +220,7 @@ int main(int argc, char** argv) {
 			} else {
 				printf("Missing argument for flag %s!\n", argv[i]);
 				return 1;
-			}
+			} */
 		} else {
 			int exit = 0;
 			if (strcmp(argv[i], "--help")) {
@@ -259,10 +258,13 @@ int main(int argc, char** argv) {
 	terminal_init();
 	clear();
 	setbuf(stdout, NULL);
-	srand(time(NULL));
 
-	draw_box(WIDTH * 2, HEIGHT, OFFSETX, OFFSETY);
-	apple* jabolko = ustvari_jabolko(glava, WIDTH, HEIGHT, OFFSETX + 2, OFFSETY + 2);
+	int* seed = (int*) malloc(sizeof(int));
+	srand((int) seed);
+	free (seed);
+
+	draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
+	apple* jabolko = ustvari_jabolko(glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
 
 	int sw = 0;
 	int running = 1;
@@ -283,7 +285,7 @@ int main(int argc, char** argv) {
 					read(STDIN_FILENO, &ch, 1);
 					if (ch == 91 && !changed) {
 						read(STDIN_FILENO, &ch, 1);
-						if (ch + direction != 'B' && ch + direction != 'F') { // Checks that the directions are not opposite 'B' = 'B' + 0 = 'A' + 1 and 'F' = 'D' + 2 = 'c' + 3
+						if (ch + direction != 'B' && ch + direction != 'F' && ch - 'A' != direction) { // Checks that the directions are not opposite 'B' = 'B' + 0 = 'A' + 1 and 'F' = 'D' + 2 = 'c' + 3
 							direction = ch - 'A';
 							changed = 1;
 						}
@@ -295,10 +297,10 @@ int main(int argc, char** argv) {
 		gettimeofday(&tv_now, NULL);
 		int elapsed_ms = (tv_now.tv_sec - tv_before.tv_sec) * 1000
 		               + (tv_now.tv_usec - tv_before.tv_usec) / 1000;
-		if (elapsed_ms > TICK_SPEED) {
+		if (elapsed_ms > TICK_SPEED || (changed == 1 && elapsed_ms > 100)) {
 			changed = 0;
-			snake_body* nova_glava = premik(glava, direction, WIDTH, HEIGHT, &running, OFFSETX + 2, OFFSETY + 2);
-			move_cursor(OFFSETX + 2 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
+			snake_body* nova_glava = premik(glava, direction, WIDTH, HEIGHT, &running, OFFSETX + 3, OFFSETY + 2);
+			move_cursor(OFFSETX + 3 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
 			print_dark_green("██");
 			char* oblika;
 			if ((direction == 0 || direction == 1) && (prev_direction == 0 || prev_direction == 1)) oblika = "▐▌";
@@ -312,12 +314,12 @@ int main(int argc, char** argv) {
 				free(jabolko);
 				score++;
 				if (score == WIDTH * HEIGHT) (running = 0);
-				else jabolko = ustvari_jabolko(nova_glava, WIDTH, HEIGHT, OFFSETX + 2, OFFSETY + 2);
-			} else odstrani_zadnjo(nova_glava, OFFSETX + 2, OFFSETY + 2);
-			move_cursor(OFFSETX + 2 + glava -> x * 2, OFFSETY + 2 + glava -> y);
+				else jabolko = ustvari_jabolko(nova_glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
+			} else odstrani_zadnjo(nova_glava, OFFSETX + 3, OFFSETY + 2);
+			move_cursor(OFFSETX + 3 + glava -> x * 2, OFFSETY + 2 + glava -> y);
 			print_green(oblika);
 			if (running) {
-				move_cursor(OFFSETX + 2 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
+				move_cursor(OFFSETX + 3 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
 				print_dark_green("██");
 			}
 			gettimeofday(&tv_before, NULL);
@@ -325,7 +327,7 @@ int main(int argc, char** argv) {
 			prev_direction = direction;
 		}
 	}
-	move_cursor(OFFSETX + 2 + WIDTH * 2, OFFSETY + 2 + HEIGHT);
+	move_cursor(OFFSETX + 3 + WIDTH * 2, OFFSETY + 2 + HEIGHT);
 	printf("\n");
 	terminal_cleanup();
 
