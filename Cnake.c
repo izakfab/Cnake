@@ -2,21 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include "terminal.h"
-
-typedef struct _snake_body {
-	int x;
-	int y;
-	char *oblika;
-	struct _snake_body *next;
-} snake_body;
-
-typedef struct _apple {
-	int x;
-	int y;
-} apple;
+#include "Cnake.h"
 
 
 void odstrani_zadnjo(snake_body* glava, int offsetx, int offsety) {
@@ -28,6 +18,22 @@ void odstrani_zadnjo(snake_body* glava, int offsetx, int offsety) {
 		glava -> next = NULL;
 	}
 	else odstrani_zadnjo(glava -> next, offsetx, offsety);
+}
+
+void odstrani_kaco(snake_body* glava) {
+	if (glava == NULL) return;
+	odstrani_kaco(glava -> next);
+	free(glava);
+}
+
+snake_body* ustvari_kaco(int width, int height) {
+	snake_body* glava = (snake_body*) malloc(sizeof(snake_body));
+	snake_body* t1 = (snake_body*) malloc(sizeof(snake_body));
+	snake_body* t2 = (snake_body*) malloc(sizeof(snake_body));
+	t2 -> x = width / 2  - 2; t2 -> y = height / 2; t2 -> next = NULL; t2 -> oblika = "■■";
+	t1 -> x = width / 2 - 1; t1 -> y = height / 2; t1 -> next = t2; t1 -> oblika = "■■";
+	glava -> x = width / 2; glava -> y = height /2; glava -> next = t1; glava -> oblika = "■■";
+	return glava;
 }
 
 int prosto(snake_body* glava, int x, int y) {
@@ -127,12 +133,18 @@ snake_body* premik(snake_body* glava, int smer, int width, int height, int* runn
 	return nova_glava;
 }
 
+
+
 int main(int argc, char** argv) {
 	int HEIGHT = 20;
     int WIDTH = 20;
 	int TICK_SPEED = 500;
-	int OFFSETX = 12;
-	int OFFSETY = 6;
+
+	struct winsize w;
+	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+	int term_width = w.ws_col;
+	int term_height = w.ws_row;
 
 	for (int i = 1; i < argc; i++) {
 		char* endptr;
@@ -142,8 +154,8 @@ int main(int argc, char** argv) {
 				if (*endptr != 0) {
 					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
 					return 1;
-				} else if (height < 3 || height > INT32_MAX) {
-					printf("Height must be at least 3 and less than %d!\n", INT32_MAX);
+				} else if (height < 16 || height > w.ws_row - 2) {
+					printf("Height must be at least 16 and no more than %d! (with your current window size)\n", w.ws_row - 2);
 					return 1;
 				} else {
 					HEIGHT = height;
@@ -159,8 +171,8 @@ int main(int argc, char** argv) {
 				if (*endptr != 0) {
 					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
 					return 1;
-				} else if (width < 5 || width > INT32_MAX) {
-					printf("Width must be at least 5 and less than %d!\n", INT32_MAX);
+				} else if (width < 6 || width > w.ws_col / 2 - 2) {
+					printf("Width must be at least 6 and no more than %d! (with your current window size)\n", w.ws_col / 2 - 2);
 					return 1;
 				} else {
 					WIDTH = width;
@@ -176,8 +188,8 @@ int main(int argc, char** argv) {
 				if (*endptr != 0) {
 					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
 					return 1;
-				} else if (tick_speed < 100 || tick_speed > INT32_MAX) {
-					printf("Tick speed must be at least 100 and less than %d!\n", INT32_MAX);
+				} else if (tick_speed < 100 || tick_speed > 10000) {
+					printf("Tick speed must be at least 100 and no more than %d!\n", 10000);
 					return 1;
 				} else {
 					TICK_SPEED = tick_speed;
@@ -247,12 +259,10 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	snake_body* glava = (snake_body*) malloc(sizeof(snake_body));
-	snake_body* t1 = (snake_body*) malloc(sizeof(snake_body));
-	snake_body* t2 = (snake_body*) malloc(sizeof(snake_body));
-	t2 -> x = WIDTH / 2  - 2; t2 -> y = HEIGHT / 2; t2 -> next = NULL;
-	t1 -> x = WIDTH / 2 - 1; t1 -> y = HEIGHT / 2; t1 -> next = t2;
-	glava -> x = WIDTH / 2; glava -> y = HEIGHT /2; glava -> next = t1;
+	int OFFSETX = (w.ws_col - WIDTH * 2 - 4) / 2;
+	int OFFSETY = (w.ws_row - HEIGHT - 2) / 2;
+
+	snake_body* glava = ustvari_kaco(WIDTH, HEIGHT);
 
 
 	terminal_init();
@@ -263,10 +273,10 @@ int main(int argc, char** argv) {
 	srand((int) seed);
 	free (seed);
 
+	draw_snake(glava, OFFSETX, OFFSETY, 1);
 	draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
 	apple* jabolko = ustvari_jabolko(glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
 
-	int sw = 0;
 	int running = 1;
 	int prev_direction = 2;
 	int direction = 2; // 0: up 1: down 2: right 3: left
@@ -274,57 +284,140 @@ int main(int argc, char** argv) {
 	gettimeofday(&tv_before, NULL);
 	int changed = 0; // Prevents multiple direction changes per tick
 	int score = 3;
+	int paused = 0;
+	int selection = 0;
 	while (running == 1) {
-		if (kbhit()) {
-			char ch;
-			read(STDIN_FILENO, &ch, 1);
-			if (ch == 27) {
-				if (!kbhit())
-					running = 0;
-				else {
-					read(STDIN_FILENO, &ch, 1);
-					if (ch == 91 && !changed) {
+
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+
+
+
+		if (paused == 1) {
+			char ch = 0;
+			if (kbhit()) {
+				read(STDIN_FILENO, &ch, 1);
+				if (ch == 27 || ch == 10 && selection == 2) {
+					if (!kbhit())
+						running = 0;
+					else {
 						read(STDIN_FILENO, &ch, 1);
-						if (ch + direction != 'B' && ch + direction != 'F' && ch - 'A' != direction) { // Checks that the directions are not opposite 'B' = 'B' + 0 = 'A' + 1 and 'F' = 'D' + 2 = 'c' + 3
-							direction = ch - 'A';
-							changed = 1;
+						if (ch == 91) {
+							read(STDIN_FILENO, &ch, 1);
 						}
 					}
+				} else if (ch == 'p' || ch == 10 && selection == 0) {
+					paused = 0;
+					clear();
+					draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
+					draw_snake(glava, OFFSETX, OFFSETY, 1);
+					move_cursor(OFFSETX + jabolko -> x * 2 + 3, OFFSETY + jabolko -> y + 2);
+					print_red("◖◗");
+				} else if (ch == 10 && selection == 1) {
+					prev_direction = 2;
+					direction = 2;
+					score = 3;
+					paused = 0;
+					odstrani_kaco(glava);
+					glava = ustvari_kaco(WIDTH, HEIGHT);
+					free(jabolko);
+					clear();
+					jabolko = ustvari_jabolko(glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
+					draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
+					draw_snake(glava, OFFSETX, OFFSETY, 1);
+					move_cursor(OFFSETX + jabolko -> x * 2 + 3, OFFSETY + jabolko -> y + 2);
+					print_red("◖◗");
+
 				}
 			}
-		}
-		struct timeval tv_now;
-		gettimeofday(&tv_now, NULL);
-		int elapsed_ms = (tv_now.tv_sec - tv_before.tv_sec) * 1000
-		               + (tv_now.tv_usec - tv_before.tv_usec) / 1000;
-		if (elapsed_ms > TICK_SPEED || (changed == 1 && elapsed_ms > 100)) {
-			changed = 0;
-			snake_body* nova_glava = premik(glava, direction, WIDTH, HEIGHT, &running, OFFSETX + 3, OFFSETY + 2);
-			move_cursor(OFFSETX + 3 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
-			print_dark_green("██");
-			char* oblika;
-			if ((direction == 0 || direction == 1) && (prev_direction == 0 || prev_direction == 1)) oblika = "▐▌";
-			else if ((direction == 2 || direction == 3) && (prev_direction == 2 || prev_direction == 3)) oblika = "■■";
-			else if ((direction == 2 && prev_direction == 0) || (direction == 1 && prev_direction == 3)) oblika = " ▄";
-			else if ((direction == 1 && prev_direction == 2) || (direction == 3 && prev_direction == 0)) oblika = "▄ ";
-			else if ((direction == 3 && prev_direction == 1) || (direction == 0 && prev_direction == 2)) oblika = "▀ ";
-			else if ((direction == 0 && prev_direction == 3) || (direction == 2 && prev_direction == 1)) oblika = " ▀";
-			glava -> oblika = oblika;
-			if (nova_glava -> x == jabolko -> x && nova_glava -> y == jabolko -> y) {
-				free(jabolko);
-				score++;
-				if (score == WIDTH * HEIGHT) (running = 0);
-				else jabolko = ustvari_jabolko(nova_glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
-			} else odstrani_zadnjo(nova_glava, OFFSETX + 3, OFFSETY + 2);
-			move_cursor(OFFSETX + 3 + glava -> x * 2, OFFSETY + 2 + glava -> y);
-			print_green(oblika);
-			if (running) {
+			if (selection == 0 && ch == 'B') {
+				draw_button(" Resume   ", OFFSETX + WIDTH - 4, OFFSETY + 5);
+				select_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+				selection = 1;
+			} else if (selection == 1 && ch == 'A') {
+				draw_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+				select_button(" Resume   ", OFFSETX + WIDTH - 4, OFFSETY + 5);
+				selection = 0;
+			} else if (selection == 1 && ch == 'B') {
+				draw_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+				select_button(" Quit     ", OFFSETX + WIDTH - 4, OFFSETY + 13);
+				selection = 2;
+			} else if (selection == 2 && ch == 'A') {
+				draw_button(" Quit     ", OFFSETX + WIDTH - 4, OFFSETY + 13);
+				select_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+				selection = 1;
+			}
+		} else {
+			if ((w.ws_col - WIDTH * 2 - 4) / 2 != OFFSETX || (w.ws_row - HEIGHT - 2) / 2 != OFFSETY) {
+				OFFSETX = (w.ws_col - WIDTH * 2 - 4) / 2;
+				OFFSETY = (w.ws_row - HEIGHT - 2) / 2;
+				clear();
+				draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
+				draw_snake(glava, OFFSETX, OFFSETY, 1);
+				move_cursor(OFFSETX + jabolko -> x * 2 + 3, OFFSETY + jabolko -> y + 2);
+				print_red("◖◗");
+			}
+			if (kbhit()) {
+				char ch;
+				read(STDIN_FILENO, &ch, 1);
+				if (ch == 27) {
+					if (!kbhit())
+						running = 0;
+					else {
+						read(STDIN_FILENO, &ch, 1);
+						if (ch == 91 && !changed) {
+							read(STDIN_FILENO, &ch, 1);
+							if (ch == 'A' || ch == 'B' || ch == 'C' || ch == 'D')
+							if (ch + direction != 'B' && ch + direction != 'F' && ch - 'A' != direction) { // Checks that the directions are not opposite 'B' = 'B' + 0 = 'A' + 1 and 'F' = 'D' + 2 = 'c' + 3
+								direction = ch - 'A';
+								changed = 1;
+							}
+						}
+					}
+				} else if (ch == 'p') {
+					paused = 1;
+					clear();
+					draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
+					move_cursor(OFFSETX + WIDTH, OFFSETY + 2);
+					printf("Paused");
+					select_button(" Resume   ", OFFSETX + WIDTH - 4, OFFSETY + 5);
+					selection = 0;
+					draw_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+					draw_button(" Quit     ", OFFSETX + WIDTH - 4, OFFSETY + 13);
+				}
+			}
+			struct timeval tv_now;
+			gettimeofday(&tv_now, NULL);
+			int elapsed_ms = (tv_now.tv_sec - tv_before.tv_sec) * 1000
+						   + (tv_now.tv_usec - tv_before.tv_usec) / 1000;
+			if (elapsed_ms > TICK_SPEED || (changed == 1 && elapsed_ms > 100)) {
+				changed = 0;
+				snake_body* nova_glava = premik(glava, direction, WIDTH, HEIGHT, &running, OFFSETX + 3, OFFSETY + 2);
 				move_cursor(OFFSETX + 3 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
 				print_dark_green("██");
+				char* oblika;
+				if ((direction == 0 || direction == 1) && (prev_direction == 0 || prev_direction == 1)) oblika = "▐▌";
+				else if ((direction == 2 || direction == 3) && (prev_direction == 2 || prev_direction == 3)) oblika = "■■";
+				else if ((direction == 2 && prev_direction == 0) || (direction == 1 && prev_direction == 3)) oblika = " ▄";
+				else if ((direction == 1 && prev_direction == 2) || (direction == 3 && prev_direction == 0)) oblika = "▄ ";
+				else if ((direction == 3 && prev_direction == 1) || (direction == 0 && prev_direction == 2)) oblika = "▀ ";
+				else if ((direction == 0 && prev_direction == 3) || (direction == 2 && prev_direction == 1)) oblika = " ▀";
+				glava -> oblika = oblika;
+				if (nova_glava -> x == jabolko -> x && nova_glava -> y == jabolko -> y) {
+					free(jabolko);
+					score++;
+					if (score == WIDTH * HEIGHT) (running = 0);
+					else jabolko = ustvari_jabolko(nova_glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
+				} else odstrani_zadnjo(nova_glava, OFFSETX + 3, OFFSETY + 2);
+				move_cursor(OFFSETX + 3 + glava -> x * 2, OFFSETY + 2 + glava -> y);
+				print_green(oblika);
+				if (running) {
+					move_cursor(OFFSETX + 3 + nova_glava -> x * 2, OFFSETY + 2 + nova_glava -> y);
+					print_dark_green("██");
+				}
+				gettimeofday(&tv_before, NULL);
+				glava = nova_glava;
+				prev_direction = direction;
 			}
-			gettimeofday(&tv_before, NULL);
-			glava = nova_glava;
-			prev_direction = direction;
 		}
 	}
 	move_cursor(OFFSETX + 3 + WIDTH * 2, OFFSETY + 2 + HEIGHT);

@@ -3,6 +3,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include "terminal.h"
+#include "Cnake.h"
 
 static struct termios old_attr;
 
@@ -56,6 +57,37 @@ void draw_box(int width, int height, int offx, int offy) {
 	printf("╚");
 	for (int i = 0; i < width; i++) printf("═");
 	printf("╝");
+}
+
+void draw_snake(snake_body* head, int offx, int offy, int prva) {
+	if (head == NULL) return;
+	move_cursor(offx + head -> x * 2 + 3, offy + head -> y + 2);
+	if (prva) print_dark_green("██");
+	else print_green(head -> oblika);
+	draw_snake(head -> next, offx, offy, 0);
+}
+
+void draw_button(char* text, int offx, int offy) {
+	move_cursor(1 + offx, 1 + offy);
+
+	printf("┌");
+	int length = 0;
+	for (char* c = text; *c != 0; c++) {
+		length++;
+		printf("─");
+	}
+	printf("┐");
+	move_cursor(1 + offx, 2 + offy);
+	printf("│%s│", text);
+	move_cursor(1 + offx, 3 + offy);
+	printf("└");
+	for (int i = 0; i < length; i++) printf("─");
+	printf("┘");
+}
+void select_button(char* text, int offx, int offy) {
+	printf("%c[7;1m", ASCII_ESC);
+	draw_button(text, offx, offy);
+	printf("%c[0m", ASCII_ESC);
 }
 
 void print_red(char text[]) {
