@@ -59,12 +59,37 @@ void draw_box(int width, int height, int offx, int offy) {
 	printf("╝");
 }
 
-void draw_snake(snake_body* head, int offx, int offy, int prva) {
+void draw_snake(snake_body* head, int offx, int offy, int first) {
 	if (head == NULL) return;
 	move_cursor(offx + head -> x * 2 + 3, offy + head -> y + 2);
-	if (prva) print_dark_green("██");
+	if (first) print_dark_green("██");
 	else print_green(head -> oblika);
 	draw_snake(head -> next, offx, offy, 0);
+}
+
+void draw_start_screen(int width, int height, int offx, int offy) {
+	draw_box(width * 2, height, offx + 1, offy);
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 2);
+	printf("MM'\"\"\"\"'YMM                   dP");
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 3);
+	printf("M' .mmm. `M                   88\n");
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 4);
+	printf("M  MMMMMooM 88d888b. .d8888b. 88  .dP  .d8888b.");
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 5);
+	printf("M  MMMMMMMM 88'  `88 88'  `88 88888\"   88ooood8");
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 6);
+	printf("M. `MMM' .M 88    88 88.  .88 88  `8b. 88.  ...");
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 7);
+	printf("MM.     .dM dP    dP `88888P8 dP   `YP `88888P'");
+	move_cursor(offx + (width / 2 - 10) * 2 - 1, offy + 8);
+	printf("MMMMMMMMMMM");
+	move_cursor(offx + (width / 2 - 6) * 2 - 1, offy + 10);
+	printf("Press any key to start the game.");
+}
+
+void draw_apple(apple* apple, int offx, int offy) {
+	move_cursor(offx + apple -> x * 2 + 3, offy + apple -> y + 2);
+	print_red("◖◗");
 }
 
 void draw_button(char* text, int offx, int offy) {

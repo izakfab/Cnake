@@ -14,6 +14,10 @@ void draw_box(int width, int height, int offx, int offy);
 
 void draw_snake(snake_body* body, int offx, int offy, int prva);
 
+void draw_start_screen(int width, int height, int offx, int offy);
+
+void draw_apple(apple* apple, int offx, int offy);
+
 void draw_button(char* text, int offx, int offy);
 
 void select_button(char* text, int off, int offy);

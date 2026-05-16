@@ -50,8 +50,6 @@ apple* ustvari_jabolko(snake_body* glava, int width, int height, int offsetx, in
 		x = rand() % width;
 		y = rand() % height;
 	} while (!prosto(glava, x, y));
-	move_cursor(offsetx + x * 2, offsety + y);
-	print_red("◖◗");
 	jabolko -> x = x;
 	jabolko -> y = y;
 	return jabolko;
@@ -134,10 +132,9 @@ snake_body* premik(snake_body* glava, int smer, int width, int height, int* runn
 }
 
 
-
 int main(int argc, char** argv) {
 	int HEIGHT = 20;
-    int WIDTH = 20;
+    int WIDTH = 24;
 	int TICK_SPEED = 500;
 
 	struct winsize w;
@@ -171,8 +168,8 @@ int main(int argc, char** argv) {
 				if (*endptr != 0) {
 					printf("Wrong type of parameter for flag %s: %s\n%s only accepts integers!\n", argv[i], argv[i + 1], argv[i]);
 					return 1;
-				} else if (width < 6 || width > w.ws_col / 2 - 2) {
-					printf("Width must be at least 6 and no more than %d! (with your current window size)\n", w.ws_col / 2 - 2);
+				} else if (width < 24 || width > w.ws_col / 2 - 2) {
+					printf("Width must be at least 24 and no more than %d! (with your current window size)\n", w.ws_col / 2 - 2);
 					return 1;
 				} else {
 					WIDTH = width;
@@ -273,9 +270,24 @@ int main(int argc, char** argv) {
 	srand((int) seed);
 	free (seed);
 
+	draw_start_screen(WIDTH, HEIGHT, OFFSETX, OFFSETY);
+
+	usleep(10000);
+	while (!kbhit()) {
+		ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
+		if ((w.ws_col - WIDTH * 2 - 4) / 2 != OFFSETX || (w.ws_row - HEIGHT - 2) / 2 != OFFSETY) {
+			clear();
+			OFFSETX = (w.ws_col - WIDTH * 2 - 4) / 2;
+			OFFSETY = (w.ws_row - HEIGHT - 2) / 2;
+			draw_start_screen(WIDTH, HEIGHT, OFFSETX, OFFSETY);
+		}
+	}
+	clear();
+
 	draw_snake(glava, OFFSETX, OFFSETY, 1);
 	draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
 	apple* jabolko = ustvari_jabolko(glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
+	draw_apple(jabolko, OFFSETX, OFFSETY);
 
 	int running = 1;
 	int prev_direction = 2;
@@ -293,6 +305,21 @@ int main(int argc, char** argv) {
 
 
 		if (paused == 1) {
+			if ((w.ws_col - WIDTH * 2 - 4) / 2 != OFFSETX || (w.ws_row - HEIGHT - 2) / 2 != OFFSETY) {
+				OFFSETX = (w.ws_col - WIDTH * 2 - 4) / 2;
+				OFFSETY = (w.ws_row - HEIGHT - 2) / 2;
+				clear();
+				draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
+				move_cursor(OFFSETX + WIDTH, OFFSETY + 2);
+				printf("Paused");
+				draw_button(" Resume   ", OFFSETX + WIDTH - 4, OFFSETY + 5);
+				draw_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+				draw_button(" Quit     ", OFFSETX + WIDTH - 4, OFFSETY + 13);
+				if (selection == 0) select_button(" Resume   ", OFFSETX + WIDTH - 4, OFFSETY + 5);
+				else if (selection == 1) select_button(" Restart  ", OFFSETX + WIDTH - 4, OFFSETY + 9);
+				else if (selection == 2) select_button(" Quit     ", OFFSETX + WIDTH - 4, OFFSETY + 13);
+			}
+
 			char ch = 0;
 			if (kbhit()) {
 				read(STDIN_FILENO, &ch, 1);
@@ -310,8 +337,7 @@ int main(int argc, char** argv) {
 					clear();
 					draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
 					draw_snake(glava, OFFSETX, OFFSETY, 1);
-					move_cursor(OFFSETX + jabolko -> x * 2 + 3, OFFSETY + jabolko -> y + 2);
-					print_red("◖◗");
+					draw_apple(jabolko, OFFSETX, OFFSETY);
 				} else if (ch == 10 && selection == 1) {
 					prev_direction = 2;
 					direction = 2;
@@ -324,9 +350,7 @@ int main(int argc, char** argv) {
 					jabolko = ustvari_jabolko(glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
 					draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
 					draw_snake(glava, OFFSETX, OFFSETY, 1);
-					move_cursor(OFFSETX + jabolko -> x * 2 + 3, OFFSETY + jabolko -> y + 2);
-					print_red("◖◗");
-
+					draw_apple(jabolko, OFFSETX, OFFSETY);
 				}
 			}
 			if (selection == 0 && ch == 'B') {
@@ -353,8 +377,7 @@ int main(int argc, char** argv) {
 				clear();
 				draw_box(WIDTH * 2, HEIGHT, OFFSETX + 1, OFFSETY);
 				draw_snake(glava, OFFSETX, OFFSETY, 1);
-				move_cursor(OFFSETX + jabolko -> x * 2 + 3, OFFSETY + jabolko -> y + 2);
-				print_red("◖◗");
+				draw_apple(jabolko, OFFSETX, OFFSETY);
 			}
 			if (kbhit()) {
 				char ch;
@@ -406,7 +429,10 @@ int main(int argc, char** argv) {
 					free(jabolko);
 					score++;
 					if (score == WIDTH * HEIGHT) (running = 0);
-					else jabolko = ustvari_jabolko(nova_glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
+					else {
+						jabolko = ustvari_jabolko(nova_glava, WIDTH, HEIGHT, OFFSETX + 3, OFFSETY + 2);
+						draw_apple(jabolko, OFFSETX, OFFSETY);
+					}
 				} else odstrani_zadnjo(nova_glava, OFFSETX + 3, OFFSETY + 2);
 				move_cursor(OFFSETX + 3 + glava -> x * 2, OFFSETY + 2 + glava -> y);
 				print_green(oblika);
